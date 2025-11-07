@@ -62,6 +62,19 @@ def process_message(msg_value, conn):
     action = record.get("action")
     emp_id = record.get("emp_id")
 
+    # data validation, if error throw them to DLQ topic
+    required_fields = ["emp_id", "first_name", "last_name", "dob", "city", "salary"]
+    for field in required_fields:
+        if field not in record or record[field] is None:
+            raise ValueError(f"Missing or NULL field: {field}")
+
+    if action not in ("insert", "update", "snapshot", "delete"):
+        raise ValueError(f"Invalid action: {action}")
+
+    if action in ("insert", "snapshot", "update"):
+        if record["salary"] < 0:
+            raise ValueError(f"Invalid salary {record['salary']} for emp_id={emp_id}")
+
     with conn.cursor() as cur:
         if action in ("insert", "snapshot", "update"):  #UPSERT
             cur.execute("""
