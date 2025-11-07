@@ -1,7 +1,7 @@
 import time
 import json
 import os
-import psycopg
+import psycopg #use psycopg3
 from confluent_kafka import Producer
 
 
@@ -17,7 +17,7 @@ PG_DB = "srcdb"
 PG_USER = "dev"
 PG_PASSWORD = "dev"
 
-#records that last processed id
+#Use a local text file to record that last processed id
 STATE_FILE = "last_cdc_id.txt"
 
 def load_last_cdc_id():
@@ -40,7 +40,7 @@ def get_pg_connection():
         autocommit=True
     )
 
-# Initialize confluent_kafka Producer 
+# Initialize confluent kafka Producer 
 producer = Producer({'bootstrap.servers': KAFKA_BROKER})
 
 print("Producer started, watching CDC changes...")
@@ -86,7 +86,7 @@ def snapshot_phase(conn):
 
 def stream_phase(conn):
     print("Entering stream phase (real-time CDC)...")
-    last_processed_cdc_id = load_last_cdc_id()
+    last_processed_cdc_id = load_last_cdc_id() #read last processed cdc_id
     print(f"Resuming from last CDC ID: {last_processed_cdc_id}")
     while True:
         try:
@@ -135,6 +135,6 @@ if __name__ == "__main__":
     finally:
         print("Flushing pending messages & closing producer...")
         producer.flush()   # push all the records
-        producer.close()   # close producer
-        conn.close()       # close connection
+        producer.close()   
+        conn.close()       
         print("Producer exited cleanly.")

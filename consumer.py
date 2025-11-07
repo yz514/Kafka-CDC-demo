@@ -5,7 +5,7 @@ from confluent_kafka import Consumer, Producer, KafkaException
 # Kafka config
 KAFKA_BROKER = "localhost:39092"
 TOPIC_NAME = "emp_sync"
-DLQ_TOPIC = "emp_sync_dlq"   #  Dead Letter Queue
+DLQ_TOPIC = "emp_sync_dlq"   #  Dead Letter Queue Topic
 GROUP_ID = "emp_sync_group"
 
 # PostgreSQL config
