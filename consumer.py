@@ -7,7 +7,7 @@ KAFKA_BROKER = "localhost:39092"
 TOPIC_NAME = "emp_sync"
 GROUP_ID = "emp_sync_group"
 
-# PostgreSQL config（目标数据库）
+# PostgreSQL config
 PG_HOST = "localhost"
 PG_PORT = 5434
 PG_DB = "destdb"
@@ -24,12 +24,12 @@ def get_pg_connection():
         autocommit=True
     )
 
-# ✅ 初始化 Kafka Consumer
+# Initialize Kafka Consumer
 consumer = Consumer({
     'bootstrap.servers': KAFKA_BROKER,
     'group.id': GROUP_ID,
     'auto.offset.reset': 'earliest',
-    'enable.auto.commit': True,  # 自动提交 offset
+    'enable.auto.commit': True,  # auto offset
 })
 
 
@@ -43,7 +43,7 @@ def process_message(msg_value, conn):
     emp_id = record.get("emp_id")
 
     with conn.cursor() as cur:
-        if action in ("insert", "snapshot", "update"):  # ✅ 合并处理
+        if action in ("insert", "snapshot", "update"):  #UPSERT
             cur.execute("""
                 INSERT INTO employees (emp_id, first_name, last_name, dob, city, salary)
                 VALUES (%s, %s, %s, %s, %s, %s)
@@ -55,22 +55,22 @@ def process_message(msg_value, conn):
                     salary = EXCLUDED.salary;
             """, (emp_id, record["first_name"], record["last_name"], record["dob"], record["city"], record["salary"]))
             
-            action_label = "📥 UPSERT" if action in ("insert", "snapshot") else "✏️  UPDATE"
+            action_label = "UPSERT" if action in ("insert", "snapshot") else "UPDATE"
             print(f"{action_label}: emp_id={emp_id}")
 
         elif action == "delete":
             cur.execute("DELETE FROM employees WHERE emp_id = %s;", (emp_id,))
-            print(f"❌ DELETED: emp_id={emp_id}")
+            print(f"DELETED: emp_id={emp_id}")
         
         else:
-            print(f"⚠️  Unknown action '{action}' for emp_id={emp_id}")
+            print(f"Unknown action '{action}' for emp_id={emp_id}")
 
 
 def main():
     conn = get_pg_connection()
     try:
         while True:
-            msg = consumer.poll(1.0)  # 超时时间 1 秒
+            msg = consumer.poll(1.0)  
             if msg is None:
                 continue
             if msg.error():
@@ -80,7 +80,7 @@ def main():
             process_message(msg_value, conn)
 
     except KeyboardInterrupt:
-        print("\n🛑 Stopped by user.")
+        print("\n Stopped by user.")
     finally:
         consumer.close()
         conn.close()

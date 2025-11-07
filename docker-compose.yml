@@ -21,7 +21,7 @@ services:
       POSTGRES_PASSWORD: dev
       POSTGRES_DB: destdb
     ports:
-      - "5434:5432"          #  5434 container的 5432
+      - "5434:5432"          
     volumes:
       - pg_b_data:/var/lib/postgresql/data
     networks: [cdc_net]

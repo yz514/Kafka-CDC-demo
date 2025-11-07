@@ -27,14 +27,14 @@ def get_pg_connection():
 # Initialize confluent_kafka Producer 
 producer = Producer({'bootstrap.servers': KAFKA_BROKER})
 
-print("🚀 Producer started, watching CDC changes...")
+print("Producer started, watching CDC changes...")
 
 def delivery_report(err, msg):
     """Delivery callback"""
     if err is not None:
-        print(f"❌ Delivery failed: {err}")
+        print(f"Delivery failed: {err}")
     else:
-        print(f"📤 Sent to Kafka [{msg.topic()} @ partition {msg.partition()}]: {msg.value().decode('utf-8')}")
+        print(f"Sent to Kafka [{msg.topic()} @ partition {msg.partition()}]: {msg.value().decode('utf-8')}")
 
 def send_to_kafka(record):
     producer.produce(
@@ -45,7 +45,7 @@ def send_to_kafka(record):
     producer.poll(0)  
 
 def snapshot_phase(conn):
-    print("⚙️ Starting snapshot sync...")
+    print("Starting snapshot sync...")
     with conn.cursor() as cur:
         cur.execute("""
             SELECT emp_id, first_name, last_name, dob, city, salary
@@ -66,10 +66,10 @@ def snapshot_phase(conn):
             }
             send_to_kafka(record)
         producer.flush()
-    print(f"✅ Snapshot phase completed ({len(rows)} records sent)")
+    print(f"Snapshot phase completed ({len(rows)} records sent)")
 
 def stream_phase(conn):
-    print("🚀 Entering stream phase (real-time CDC)...")
+    print("Entering stream phase (real-time CDC)...")
     last_processed_cdc_id = 0
     while True:
         try:
@@ -101,7 +101,7 @@ def stream_phase(conn):
             time.sleep(2)
 
         except Exception as e:
-            print(f"⚠️ Error in stream loop: {e}")
+            print(f"Error in stream loop: {e}")
             time.sleep(5)
             conn = get_pg_connection()
 
@@ -111,12 +111,12 @@ if __name__ == "__main__":
         snapshot_phase(conn)
         stream_phase(conn)
     except KeyboardInterrupt:
-        print("\n🛑 Stopped by user.")
+        print("\nStopped by user.")
     except Exception as e:
-        print(f"❌ Producer crashed: {e}")
+        print(f"Producer crashed: {e}")
     finally:
-        print("🧹 Flushing pending messages & closing producer...")
+        print("Flushing pending messages & closing producer...")
         producer.flush()   # push all the records
         producer.close()   # close producer
         conn.close()       # close connection
-        print("✅ Producer exited cleanly.")
+        print("Producer exited cleanly.")
