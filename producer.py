@@ -24,7 +24,7 @@ def get_pg_connection():
         autocommit=True
     )
 
-# ✅ confluent_kafka Producer 初始化写法
+# Initialize confluent_kafka Producer 
 producer = Producer({'bootstrap.servers': KAFKA_BROKER})
 
 print("🚀 Producer started, watching CDC changes...")
@@ -42,7 +42,7 @@ def send_to_kafka(record):
         value=json.dumps(record).encode('utf-8'),
         callback=delivery_report
     )
-    producer.poll(0)  # 触发回调，不阻塞
+    producer.poll(0)  
 
 def snapshot_phase(conn):
     print("⚙️ Starting snapshot sync...")
@@ -116,7 +116,7 @@ if __name__ == "__main__":
         print(f"❌ Producer crashed: {e}")
     finally:
         print("🧹 Flushing pending messages & closing producer...")
-        producer.flush()   # 把缓冲区里的消息都发完
-        producer.close()   # 关闭连接（释放资源）
-        conn.close()       # 同时关闭数据库连接
+        producer.flush()   # push all the records
+        producer.close()   # close producer
+        conn.close()       # close connection
         print("✅ Producer exited cleanly.")
