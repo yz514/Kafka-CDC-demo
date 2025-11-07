@@ -1,0 +1,69 @@
+
+services:
+  pg_a:
+    image: postgres:15
+    container_name: pg_a
+    environment:
+      POSTGRES_USER: dev
+      POSTGRES_PASSWORD: dev
+      POSTGRES_DB: srcdb
+    ports:
+      - "5433:5432"          # port mapping of local 5433 to container 5432
+    volumes:
+      - pg_a_data:/var/lib/postgresql/data
+    networks: [cdc_net] #every container is linked to a network called cdc_net, so that container could communicate with each other
+
+  pg_b:
+    image: postgres:15
+    container_name: pg_b
+    environment:
+      POSTGRES_USER: dev
+      POSTGRES_PASSWORD: dev
+      POSTGRES_DB: destdb
+    ports:
+      - "5434:5432"          #  5434 container的 5432
+    volumes:
+      - pg_b_data:/var/lib/postgresql/data
+    networks: [cdc_net]
+
+  adminer:  #Web UI for database management
+    image: adminer
+    container_name: adminer
+    ports:
+      - "8081:8080"          # open http://localhost:8081 to manage two databases
+    depends_on: [pg_a, pg_b]
+    networks: [cdc_net]
+
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.4.0
+    container_name: zookeeper_p2
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 22181   
+      ZOOKEEPER_TICK_TIME: 2000
+    networks: [cdc_net]
+    
+  kafka:
+    image: confluentinc/cp-kafka:7.4.0
+    container_name: kafka_p2
+    depends_on:
+      - zookeeper
+    ports:
+      - "39092:39092"  
+    environment:
+      KAFKA_BROKER_ID: 2
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper_p2:22181
+      
+      
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka_p2:9092,PLAINTEXT_HOST://localhost:39092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092,PLAINTEXT_HOST://0.0.0.0:39092
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+    networks: [cdc_net]
+volumes:
+  pg_a_data:
+  pg_b_data:
+
+networks:
+  cdc_net:
