@@ -1,7 +1,10 @@
 import time
 import json
+import os
 import psycopg
 from confluent_kafka import Producer
+
+
 
 # Kafka config
 KAFKA_BROKER = "localhost:39092"
@@ -13,6 +16,19 @@ PG_PORT = 5433
 PG_DB = "srcdb"
 PG_USER = "dev"
 PG_PASSWORD = "dev"
+
+#records that last processed id
+STATE_FILE = "last_cdc_id.txt"
+
+def load_last_cdc_id():
+    if os.path.exists(STATE_FILE):
+        with open(STATE_FILE, "r") as f:
+            return int(f.read().strip())
+    return 0
+
+def save_last_cdc_id(cdc_id):
+    with open(STATE_FILE, "w") as f:
+        f.write(str(cdc_id))
 
 def get_pg_connection():
     return psycopg.connect(
@@ -70,7 +86,8 @@ def snapshot_phase(conn):
 
 def stream_phase(conn):
     print("Entering stream phase (real-time CDC)...")
-    last_processed_cdc_id = 0
+    last_processed_cdc_id = load_last_cdc_id()
+    print(f"Resuming from last CDC ID: {last_processed_cdc_id}")
     while True:
         try:
             with conn.cursor() as cur:
@@ -95,6 +112,7 @@ def stream_phase(conn):
                     }
                     send_to_kafka(record)
                     last_processed_cdc_id = row[0]
+                    save_last_cdc_id(last_processed_cdc_id)
 
                 if rows:
                     producer.flush()

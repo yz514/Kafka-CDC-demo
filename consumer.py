@@ -1,10 +1,11 @@
 import json
 import psycopg
-from confluent_kafka import Consumer, KafkaException
+from confluent_kafka import Consumer, Producer, KafkaException
 
 # Kafka config
 KAFKA_BROKER = "localhost:39092"
 TOPIC_NAME = "emp_sync"
+DLQ_TOPIC = "emp_sync_dlq"   #  Dead Letter Queue
 GROUP_ID = "emp_sync_group"
 
 # PostgreSQL config
@@ -33,8 +34,27 @@ consumer = Consumer({
 })
 
 
+# Initialzie Producer for DLQ
+dlq_producer = Producer({'bootstrap.servers': KAFKA_BROKER})
+ 
+
+
 consumer.subscribe([TOPIC_NAME])
-print(f"🚀 Consumer subscribed to topic '{TOPIC_NAME}' and listening for CDC events...")
+print(f"Consumer subscribed to topic '{TOPIC_NAME}' and listening for CDC events...")
+
+
+
+def send_to_dlq(original_message, error_detail):
+    payload = {
+        "error": str(error_detail),
+        "original_message": original_message
+    }
+    dlq_producer.produce(
+        DLQ_TOPIC,
+        value=json.dumps(payload).encode("utf-8")
+    )
+    dlq_producer.flush()
+    print(f"Sent bad message to DLQ: {error_detail}")
 
 
 def process_message(msg_value, conn):
@@ -77,13 +97,19 @@ def main():
                 raise KafkaException(msg.error())
 
             msg_value = msg.value().decode("utf-8")
-            process_message(msg_value, conn)
+            try:
+                process_message(msg_value, conn)
+            except Exception as e:
+                #when encounter error, push it to DLQ
+                send_to_dlq(msg_value, e)
 
     except KeyboardInterrupt:
         print("\n Stopped by user.")
     finally:
         consumer.close()
+        dlq_producer.close() 
         conn.close()
+        print("Consumer exited cleanly.")
 
 if __name__ == "__main__":
     main()
